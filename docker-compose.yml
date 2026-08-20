@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gridtwin
+      POSTGRES_PASSWORD: gridtwin
+      POSTGRES_DB: gridtwin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gridtwin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://gridtwin:gridtwin@postgres:5432/gridtwin
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  telemetry:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "simulator/telemetry_generator.py"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://gridtwin:gridtwin@postgres:5432/gridtwin
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  pgdata:
